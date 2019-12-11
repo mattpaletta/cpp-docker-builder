@@ -1,0 +1,140 @@
+FROM debian:stretch as build
+
+RUN apt-get update && apt-get install --no-install-suggests --no-install-recommends -y \
+  autoconf \
+  automake \
+  build-essential \
+  cmake \
+  curl \
+  wget \
+  g++ \
+  git \
+  libtool \
+  make \
+  pkg-config \
+  unzip \
+  ca-certificates \
+  ninja-build \
+# AWS SDK Depedencies
+  libcurl4-openssl-dev \
+  libssl-dev \
+  uuid-dev \
+  zlib1g-dev \
+  libpulse-dev \
+# Install Additional C++ Dependencies
+  libhiredis-dev \
+  zlib1g-dev \
+  libsasl2-dev \
+  libzstd-dev \
+  && apt-get clean
+
+ARG NPROC=4
+ENV BOOST_MAJOR_VERSION 1
+ENV BOOST_MINOR_VERSION 71
+ENV GRPC_RELEASE_TAG v1.25.0
+ENV CMAKE_MAJOR_VERSION 3.9
+ENV CMAKE_MINOR_VERSION 2
+ENV LIBRDKAFKA_VERSION 0.11.4
+
+################################
+# Update CMake
+################################
+RUN curl https://cmake.org/files/v${CMAKE_MAJOR_VERSION}/cmake-${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}-Linux-x86_64.sh -o /cmake-${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}-Linux-x86_64.sh && \
+	mkdir /opt/cmake && \
+	sh /cmake-${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}-Linux-x86_64.sh --prefix=/opt/cmake --skip-license && \
+	ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake && \
+	rm /cmake-${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}-Linux-x86_64.sh
+
+
+################################
+# Update clang
+################################
+RUN git clone --depth 1 https://github.com/llvm/llvm-project.git && \
+	mkdir -p llvm-project/build && \
+	cd llvm-project/build && \
+	CXX=clang++ CC=clang cmake -GNinja ../llvm/ && \
+	ninja && \
+	cmake --build . --target install
+
+################################
+# Update Boost
+################################
+RUN wget https://dl.bintray.com/boostorg/release/${BOOST_MAJOR_VERSION}.${BOOST_MINOR_VERSION}.0/source/boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0.tar.bz2 && \
+	tar --bzip2 -xf boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0.tar.bz2 && \
+    cd boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0 && \
+	CXX=clang++ CC=clang ./bootstrap.sh --with-libraries=all && \
+	CXX=clang++ CC=clang ./b2 install && \
+	cd / && \
+	rm -rf boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0 && \
+	rm boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0.tar.bz2
+
+###################################
+# Install GRPC
+###################################
+RUN git clone -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /var/local/git/grpc && \
+    cd /var/local/git/grpc && \
+    git submodule update --init --recursive
+
+RUN cd /var/local/git/grpc/third_party/protobuf && \
+    CXX=clang++ CC=clang ./autogen.sh && CXX=clang++ CC=clang ./configure --enable-shared && \
+    make -j${NPROC} && make -j${NPROC} check && make install && make clean && ldconfig
+
+RUN cd /var/local/git/grpc && \
+    make -j${NPROC} && make install && make clean && ldconfig
+
+################################
+# Install AWS SDK
+################################
+RUN git clone https://github.com/aws/aws-sdk-cpp.git && \
+	mkdir -p aws-sdk-cpp/build && \
+	cd aws-sdk-cpp/build && \
+	CXX=clang++ CC=clang cmake -GNinja .. && \
+	cmake --build . && \
+	cmake --build . --target install
+
+###################################
+# Install LibEV Manually
+###################################
+RUN git clone https://github.com/LuaDist/libev.git && \
+    mkdir -p libev/build && \
+    cd libev/build && \
+    CXX=clang++ CC=clang cmake -GNinja .. && \
+    cmake --build . --target install
+
+###################################
+# Install LibRDKafka (cppkafka deps)
+####################################
+RUN curl -Lk -o /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/edenhill/librdkafka/archive/v${LIBRDKAFKA_VERSION}.tar.gz && \
+      tar -xzf /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz -C /root && \
+      cd /root/librdkafka-${LIBRDKAFKA_VERSION} && \
+      ./configure --prefix /usr && make && make install && make clean && ./configure --clean
+
+RUN git clone https://github.com/mfontanini/cppkafka && \
+    mkdir -p cppkafka/build && \
+    cd cppkafka/build && \
+    cmake .. && \
+    make install
+
+###################################
+# Install PB2JSON + Deps
+###################################
+# ENV JANSSON_VERSION 2.11
+# RUN curl -o jansson-${JANSSON_VERSION}.tar.gz http://www.digip.org/jansson/releases/jansson-${JANSSON_VERSION}.tar.gz && \
+#     tar -zxf jansson-${JANSSON_VERSION}.tar.gz && \
+#     cd jansson-${JANSSON_VERSION} && \
+#     ./configure && \
+#     make install
+#
+# RUN git clone https://github.com/shafreeck/pb2json.git && \
+#     cd pb2json && \
+#     make && \
+#     make install
+
+###################################
+# Install Redox (cpp redis client)
+###################################
+RUN git clone https://github.com/hmartiro/redox.git && \
+    mkdir -p redox/build && \
+    cd redox/build && \
+    cmake .. && \
+    make install
