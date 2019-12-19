@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install --no-install-suggests --no-install-recomme
   unzip \
   ca-certificates \
   ninja-build \
+  binutils \
 # AWS SDK Depedencies
   libcurl4-openssl-dev \
   libssl-dev \
@@ -52,18 +53,19 @@ RUN curl https://cmake.org/files/v${CMAKE_MAJOR_VERSION}/cmake-${CMAKE_MAJOR_VER
 RUN git clone --depth 1 https://github.com/llvm/llvm-project.git && \
 	mkdir -p llvm-project/build && \
 	cd llvm-project/build && \
-	CXX=clang++ CC=clang cmake -GNinja ../llvm/ && \
+	cmake -GNinja -DLLVM_USE_LINKER=gold -DCMAKE_BUILD_TYPE=Release ../llvm/ && \
 	ninja && \
 	cmake --build . --target install
 
 ################################
 # Update Boost
 ################################
+RUN apt-get install -y --no-install-recommends --no-install-suggests liblzma-dev libbz2-dev libicu-dev
 RUN wget https://dl.bintray.com/boostorg/release/${BOOST_MAJOR_VERSION}.${BOOST_MINOR_VERSION}.0/source/boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0.tar.bz2 && \
 	tar --bzip2 -xf boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0.tar.bz2 && \
-    cd boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0 && \
-	CXX=clang++ CC=clang ./bootstrap.sh --with-libraries=all && \
-	CXX=clang++ CC=clang ./b2 install && \
+    	cd boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0 && \
+	./bootstrap.sh --with-libraries=all && \
+	./b2 install && \
 	cd / && \
 	rm -rf boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0 && \
 	rm boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0.tar.bz2
@@ -76,7 +78,7 @@ RUN git clone -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /var/local/git
     git submodule update --init --recursive
 
 RUN cd /var/local/git/grpc/third_party/protobuf && \
-    CXX=clang++ CC=clang ./autogen.sh && CXX=clang++ CC=clang ./configure --enable-shared && \
+    ./autogen.sh && ./configure --enable-shared && \
     make -j${NPROC} && make -j${NPROC} check && make install && make clean && ldconfig
 
 RUN cd /var/local/git/grpc && \
@@ -88,7 +90,7 @@ RUN cd /var/local/git/grpc && \
 RUN git clone https://github.com/aws/aws-sdk-cpp.git && \
 	mkdir -p aws-sdk-cpp/build && \
 	cd aws-sdk-cpp/build && \
-	CXX=clang++ CC=clang cmake -GNinja .. && \
+	cmake -GNinja .. && \
 	cmake --build . && \
 	cmake --build . --target install
 
@@ -98,7 +100,7 @@ RUN git clone https://github.com/aws/aws-sdk-cpp.git && \
 RUN git clone https://github.com/LuaDist/libev.git && \
     mkdir -p libev/build && \
     cd libev/build && \
-    CXX=clang++ CC=clang cmake -GNinja .. && \
+    cmake -GNinja .. && \
     cmake --build . --target install
 
 ###################################
@@ -109,11 +111,11 @@ RUN curl -Lk -o /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com
       cd /root/librdkafka-${LIBRDKAFKA_VERSION} && \
       ./configure --prefix /usr && make && make install && make clean && ./configure --clean
 
-RUN git clone https://github.com/mfontanini/cppkafka && \
-    mkdir -p cppkafka/build && \
-    cd cppkafka/build && \
-    cmake .. && \
-    make install
+#RUN git clone https://github.com/mfontanini/cppkafka && \
+#    mkdir -p cppkafka/build && \
+#    cd cppkafka/build && \
+#    cmake .. && \
+#    make install
 
 ###################################
 # Install PB2JSON + Deps
@@ -133,8 +135,8 @@ RUN git clone https://github.com/mfontanini/cppkafka && \
 ###################################
 # Install Redox (cpp redis client)
 ###################################
-RUN git clone https://github.com/hmartiro/redox.git && \
-    mkdir -p redox/build && \
-    cd redox/build && \
-    cmake .. && \
-    make install
+#RUN git clone https://github.com/hmartiro/redox.git && \
+#    mkdir -p redox/build && \
+#    cd redox/build && \
+#    cmake .. && \
+#    make install
