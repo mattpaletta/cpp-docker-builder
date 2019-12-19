@@ -52,9 +52,11 @@ RUN curl https://cmake.org/files/v${CMAKE_MAJOR_VERSION}/cmake-${CMAKE_MAJOR_VER
 RUN git clone --depth 1 https://github.com/llvm/llvm-project.git && \
 	mkdir -p llvm-project/build && \
 	cd llvm-project/build && \
-	CXX=clang++ CC=clang cmake -GNinja ../llvm/ && \
+	cmake -DLLVM_ENABLE_PROJECTS=clang -GNinja ../llvm/ && \
 	ninja && \
-	cmake --build . --target install
+	cmake --build . --target install && \
+	cd / && \
+	rm -rf llvm-project
 
 ################################
 # Update Boost
@@ -85,21 +87,25 @@ RUN cd /var/local/git/grpc && \
 ################################
 # Install AWS SDK
 ################################
-RUN git clone https://github.com/aws/aws-sdk-cpp.git && \
-	mkdir -p aws-sdk-cpp/build && \
-	cd aws-sdk-cpp/build && \
+RUN cd / && git clone https://github.com/aws/aws-sdk-cpp.git && \
+	mkdir -p /aws-sdk-cpp/build && \
+	cd /aws-sdk-cpp/build && \
 	CXX=clang++ CC=clang cmake -GNinja .. && \
 	cmake --build . && \
-	cmake --build . --target install
+	cmake --build . --target install && \
+	cd / && \
+	rm -rf aws-sdk-cpp
 
 ###################################
 # Install LibEV Manually
 ###################################
-RUN git clone https://github.com/LuaDist/libev.git && \
+RUN cd / && git clone https://github.com/LuaDist/libev.git && \
     mkdir -p libev/build && \
     cd libev/build && \
     CXX=clang++ CC=clang cmake -GNinja .. && \
-    cmake --build . --target install
+    cmake --build . --target install && \
+	cd / && \
+	rm -rf /libev
 
 ###################################
 # Install LibRDKafka (cppkafka deps)
@@ -107,13 +113,16 @@ RUN git clone https://github.com/LuaDist/libev.git && \
 RUN curl -Lk -o /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/edenhill/librdkafka/archive/v${LIBRDKAFKA_VERSION}.tar.gz && \
       tar -xzf /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz -C /root && \
       cd /root/librdkafka-${LIBRDKAFKA_VERSION} && \
-      ./configure --prefix /usr && make && make install && make clean && ./configure --clean
+      ./configure --prefix /usr && make && make install && make clean && ./configure --clean && \
+	  rm -rf /root/librdkafka_${LIBRDKAFKA_VERSION}.tar.gz && \
+	  rm -rf /root/librdkafka_${LIBRDKAFKA_VERSION}
 
-RUN git clone https://github.com/mfontanini/cppkafka && \
+RUN cd / && git clone https://github.com/mfontanini/cppkafka && \
     mkdir -p cppkafka/build && \
     cd cppkafka/build && \
     cmake .. && \
-    make install
+    make install && \
+	rm -rf /cppkafka
 
 ###################################
 # Install PB2JSON + Deps
@@ -133,8 +142,10 @@ RUN git clone https://github.com/mfontanini/cppkafka && \
 ###################################
 # Install Redox (cpp redis client)
 ###################################
-RUN git clone https://github.com/hmartiro/redox.git && \
+RUN cd / && git clone https://github.com/hmartiro/redox.git && \
     mkdir -p redox/build && \
     cd redox/build && \
     cmake .. && \
-    make install
+    make install && \
+	cd / && /
+	rm -rf /redox
