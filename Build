@@ -22,6 +22,10 @@ RUN apt-get update && apt-get install --no-install-suggests --no-install-recomme
   uuid-dev \
   zlib1g-dev \
   libpulse-dev \
+# Install Boost Dependencies
+  liblzma-dev \
+  libbz2-dev \
+  libicu-dev \
 # Install Additional C++ Dependencies
   libhiredis-dev \
   zlib1g-dev \
@@ -33,8 +37,8 @@ ARG NPROC=4
 ENV BOOST_MAJOR_VERSION 1
 ENV BOOST_MINOR_VERSION 71
 ENV GRPC_RELEASE_TAG v1.25.0
-ENV CMAKE_MAJOR_VERSION 3.9
-ENV CMAKE_MINOR_VERSION 2
+ENV CMAKE_MAJOR_VERSION 3.16
+ENV CMAKE_MINOR_VERSION 1
 ENV LIBRDKAFKA_VERSION 0.11.4
 
 ################################
@@ -53,14 +57,15 @@ RUN curl https://cmake.org/files/v${CMAKE_MAJOR_VERSION}/cmake-${CMAKE_MAJOR_VER
 RUN git clone --depth 1 https://github.com/llvm/llvm-project.git && \
 	mkdir -p llvm-project/build && \
 	cd llvm-project/build && \
-	cmake -GNinja -DLLVM_USE_LINKER=gold -DCMAKE_BUILD_TYPE=Release ../llvm/ && \
+	cmake -GNinja -DLLVM_ENABLE_PROJECTS=clang -DLLVM_USE_LINKER=gold -DCMAKE_BUILD_TYPE=Release ../llvm/ && \
 	ninja && \
-	cmake --build . --target install
+	cmake --build . --target install && \
+	cd / && \
+	rm -rf llvm-project
 
 ################################
 # Update Boost
 ################################
-RUN apt-get install -y --no-install-recommends --no-install-suggests liblzma-dev libbz2-dev libicu-dev
 RUN wget https://dl.bintray.com/boostorg/release/${BOOST_MAJOR_VERSION}.${BOOST_MINOR_VERSION}.0/source/boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0.tar.bz2 && \
 	tar --bzip2 -xf boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0.tar.bz2 && \
     	cd boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0 && \
@@ -87,21 +92,25 @@ RUN cd /var/local/git/grpc && \
 ################################
 # Install AWS SDK
 ################################
-RUN git clone https://github.com/aws/aws-sdk-cpp.git && \
-	mkdir -p aws-sdk-cpp/build && \
-	cd aws-sdk-cpp/build && \
-	cmake -GNinja .. && \
+RUN cd / && git clone https://github.com/aws/aws-sdk-cpp.git && \
+	mkdir -p /aws-sdk-cpp/build && \
+	cd /aws-sdk-cpp/build && \
+	CXX=clang++ CC=clang cmake -GNinja .. && \
 	cmake --build . && \
-	cmake --build . --target install
+	cmake --build . --target install && \
+	cd / && \
+	rm -rf aws-sdk-cpp
 
 ###################################
 # Install LibEV Manually
 ###################################
-RUN git clone https://github.com/LuaDist/libev.git && \
+RUN cd / && git clone https://github.com/LuaDist/libev.git && \
     mkdir -p libev/build && \
     cd libev/build && \
-    cmake -GNinja .. && \
-    cmake --build . --target install
+    CXX=clang++ CC=clang cmake -GNinja .. && \
+    cmake --build . --target install && \
+	cd / && \
+	rm -rf /libev
 
 ###################################
 # Install LibRDKafka (cppkafka deps)
@@ -109,13 +118,16 @@ RUN git clone https://github.com/LuaDist/libev.git && \
 RUN curl -Lk -o /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com/edenhill/librdkafka/archive/v${LIBRDKAFKA_VERSION}.tar.gz && \
       tar -xzf /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz -C /root && \
       cd /root/librdkafka-${LIBRDKAFKA_VERSION} && \
-      ./configure --prefix /usr && make && make install && make clean && ./configure --clean
+      ./configure --prefix /usr && make && make install && make clean && ./configure --clean && \
+	  rm -rf /root/librdkafka_${LIBRDKAFKA_VERSION}.tar.gz && \
+	  rm -rf /root/librdkafka_${LIBRDKAFKA_VERSION}
 
-#RUN git clone https://github.com/mfontanini/cppkafka && \
-#    mkdir -p cppkafka/build && \
-#    cd cppkafka/build && \
-#    cmake .. && \
-#    make install
+RUN cd / && git clone https://github.com/mfontanini/cppkafka && \
+    mkdir -p cppkafka/build && \
+    cd cppkafka/build && \
+    cmake .. && \
+    make install && \
+	rm -rf /cppkafka
 
 ###################################
 # Install PB2JSON + Deps
@@ -135,8 +147,11 @@ RUN curl -Lk -o /root/librdkafka-${LIBRDKAFKA_VERSION}.tar.gz https://github.com
 ###################################
 # Install Redox (cpp redis client)
 ###################################
-#RUN git clone https://github.com/hmartiro/redox.git && \
-#    mkdir -p redox/build && \
-#    cd redox/build && \
-#    cmake .. && \
-#    make install
+RUN cd / && git clone https://github.com/hmartiro/redox.git && \
+    mkdir -p redox/build && \
+    cd redox/build && \
+    cmake .. && \
+    make install && \
+    cd / && \
+    rm -rf /redox
+
