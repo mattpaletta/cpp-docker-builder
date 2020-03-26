@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install --no-install-suggests --no-install-recomme
   unzip \
   ca-certificates \
   ninja-build \
+  python3-pip \
+  python3-dev
 # AWS SDK Depedencies
   libcurl4-openssl-dev \
   libssl-dev \
@@ -64,7 +66,7 @@ RUN git clone --depth 1 https://github.com/llvm/llvm-project.git && \
 RUN wget https://dl.bintray.com/boostorg/release/${BOOST_MAJOR_VERSION}.${BOOST_MINOR_VERSION}.0/source/boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0.tar.bz2 && \
 	tar --bzip2 -xf boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0.tar.bz2 && \
     cd boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0 && \
-	CXX=clang++ CC=clang ./bootstrap.sh --with-libraries=all && \
+	CXX=clang++ CC=clang ./bootstrap.sh --with-libraries=all --with-python=python3&& \
 	CXX=clang++ CC=clang ./b2 install && \
 	cd / && \
 	rm -rf boost_${BOOST_MAJOR_VERSION}_${BOOST_MINOR_VERSION}_0 && \
