@@ -17,12 +17,17 @@ RUN apt-get update && apt-get install --no-install-suggests --no-install-recomme
   ninja-build \
   python3-pip \
   python3-dev
+  binutils \
 # AWS SDK Depedencies
   libcurl4-openssl-dev \
   libssl-dev \
   uuid-dev \
   zlib1g-dev \
   libpulse-dev \
+# Install Boost Dependencies
+  liblzma-dev \
+  libbz2-dev \
+  libicu-dev \
 # Install Additional C++ Dependencies
   libhiredis-dev \
   zlib1g-dev \
@@ -32,11 +37,11 @@ RUN apt-get update && apt-get install --no-install-suggests --no-install-recomme
 
 ARG NPROC=4
 ENV BOOST_MAJOR_VERSION 1
-ENV BOOST_MINOR_VERSION 71
-ENV GRPC_RELEASE_TAG v1.25.0
-ENV CMAKE_MAJOR_VERSION 3.16
-ENV CMAKE_MINOR_VERSION 1
-ENV LIBRDKAFKA_VERSION 0.11.4
+ENV BOOST_MINOR_VERSION 72
+ENV GRPC_RELEASE_TAG v1.27.3
+ENV CMAKE_MAJOR_VERSION 3.17
+ENV CMAKE_MINOR_VERSION 0
+ENV LIBRDKAFKA_VERSION 1.3.0
 
 ################################
 # Update CMake
@@ -54,8 +59,8 @@ RUN curl https://cmake.org/files/v${CMAKE_MAJOR_VERSION}/cmake-${CMAKE_MAJOR_VER
 RUN git clone --depth 1 https://github.com/llvm/llvm-project.git && \
 	mkdir -p llvm-project/build && \
 	cd llvm-project/build && \
-	cmake -DLLVM_ENABLE_PROJECTS=clang -GNinja ../llvm/ && \
-	ninja && \
+	cmake -GNinja -DLLVM_ENABLE_PROJECTS=all -DLLVM_USE_LINKER=gold -DCMAKE_BUILD_TYPE=Release ../llvm/ && \
+	cmake --build . && \
 	cmake --build . --target install && \
 	cd / && \
 	rm -rf llvm-project
@@ -80,7 +85,7 @@ RUN git clone -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /var/local/git
     git submodule update --init --recursive
 
 RUN cd /var/local/git/grpc/third_party/protobuf && \
-    CXX=clang++ CC=clang ./autogen.sh && CXX=clang++ CC=clang ./configure --enable-shared && \
+    ./autogen.sh && ./configure --enable-shared && \
     make -j${NPROC} && make -j${NPROC} check && make install && make clean && ldconfig
 
 RUN cd /var/local/git/grpc && \
@@ -149,5 +154,6 @@ RUN cd / && git clone https://github.com/hmartiro/redox.git && \
     cd redox/build && \
     cmake .. && \
     make install && \
-	cd / && /
-	rm -rf /redox
+    cd / && \
+    rm -rf /redox
+
