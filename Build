@@ -1,6 +1,7 @@
-FROM debian:stretch as build
+FROM ubuntu:latest as build
 
-RUN apt-get update && apt-get install --no-install-suggests --no-install-recommends -y \
+RUN apt-get update && apt-get install -y \
+  software-properties-common \
   autoconf \
   automake \
   build-essential \
@@ -33,6 +34,9 @@ RUN apt-get update && apt-get install --no-install-suggests --no-install-recomme
   zlib1g-dev \
   libsasl2-dev \
   libzstd-dev \
+# Postgres Dependencies
+  libpq-dev \
+  postgresql-server-dev-all \
   && apt-get clean
 
 ARG NPROC=4
@@ -53,21 +57,14 @@ RUN curl https://cmake.org/files/v${CMAKE_MAJOR_VERSION}/cmake-${CMAKE_MAJOR_VER
 	ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake && \
 	rm /cmake-${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}-Linux-x86_64.sh
 
-################################
-# Update clang
-################################
-ENV CLANG_ROOT /llvm-project
-RUN git clone --depth 1 --recursive https://github.com/llvm/llvm-project.git && \
-	mkdir -p $CLANG_ROOT/build && \
-	cd $CLANG_ROOT/build && \
-	cmake -GNinja -DLLVM_ENABLE_PROJECTS=clang -DLLVM_FORCE_USE_OLD_HOST_TOOLCHAIN=true -DLLVM_ENABLE_LIBCXX=ON -DLLVM_STATIC_LINK_CXX_STDLIB=ON -DLLVM_USE_LINKER=gold -DCMAKE_BUILD_TYPE=Release ../llvm && \
-	cmake --build . && \
-	cmake --build . --target install && \
-	ldconfig && \
-	cd / && \
-	rm -rf llvm-project
+###############################
+# Update Clang
+###############################
+RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && apt-add-repository -s "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic main"
+RUN apt-get update -y && apt-get install -y libllvm-11-ocaml-dev libllvm11 llvm-11 llvm-11-dev llvm-11-doc llvm-11-examples llvm-11-runtime clang-11 clang-tools-11 clang-11-doc libclang-common-11-dev libclang-11-dev libclang1-11 clang-format-11 libfuzzer-11-dev lldb-11  lld-11 libc++-11-dev libc++abi-11-dev libomp-11-dev # python-clang-11
 
-RUN which clang
+RUN ln -s /usr/bin/clang-11 /usr/bin/clang
+RUN ln -s /usr/bin/clang++-11 /usr/bin/clang++
 
 ################################
 # Update Boost
@@ -104,4 +101,3 @@ RUN cd / && git clone --depth 1 --recursive -b ${AWS_SDK_VERSION} https://github
 	cmake --build . --target install && \
 	cd / && \
 	rm -rf aws-sdk-cpp
-
