@@ -29,24 +29,12 @@ RUN apt-get update && apt-get install -y \
   liblzma-dev \
   libbz2-dev \
   libicu-dev \
-# Install Additional C++ Dependencies
-  libhiredis-dev \
-  zlib1g-dev \
-  libsasl2-dev \
-  libzstd-dev \
-# Postgres Dependencies
-  libpq-dev \
-  postgresql-server-dev-all \
   && apt-get clean
 
 ARG NPROC=4
-ENV BOOST_VERSION 1.72.0
-ENV GRPC_RELEASE_TAG v1.27.3
-ENV CMAKE_MAJOR_VERSION 3.17
-ENV CMAKE_MINOR_VERSION 0
-ENV LIBRDKAFKA_VERSION 1.3.0
-ENV AWS_SDK_VERSION 1.7.306
-ENV CPP_VERSION 17
+ENV BOOST_VERSION 1.74.0
+ENV CMAKE_MAJOR_VERSION 3.18
+ENV CMAKE_MINOR_VERSION 4
 
 ################################
 # Update CMake
@@ -60,11 +48,8 @@ RUN curl https://cmake.org/files/v${CMAKE_MAJOR_VERSION}/cmake-${CMAKE_MAJOR_VER
 ###############################
 # Update Clang
 ###############################
-RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && apt-add-repository -s "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic main"
-RUN apt-get update -y && apt-get install -y libllvm-11-ocaml-dev libllvm11 llvm-11 llvm-11-dev llvm-11-doc llvm-11-examples llvm-11-runtime clang-11 clang-tools-11 clang-11-doc libclang-common-11-dev libclang-11-dev libclang1-11 clang-format-11 libfuzzer-11-dev lldb-11  lld-11 libc++-11-dev libc++abi-11-dev libomp-11-dev # python-clang-11
 
-RUN ln -s /usr/bin/clang-11 /usr/bin/clang
-RUN ln -s /usr/bin/clang++-11 /usr/bin/clang++
+RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 
 ################################
 # Update Boost
@@ -75,29 +60,3 @@ RUN git clone --depth 1 --recursive -b boost-${BOOST_VERSION} https://github.com
 	CXX=clang++ CC=clang ./b2 install && \
 	cd / && \
 	rm -rf boost
-
-###################################
-# Install GRPC
-###################################
-RUN git clone -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /var/local/git/grpc && \
-    cd /var/local/git/grpc && \
-    git submodule update --init --recursive
-
-RUN cd /var/local/git/grpc/third_party/protobuf && \
-    ./autogen.sh && ./configure --enable-shared && \
-    make -j${NPROC} && make -j${NPROC} check && make install && make clean && ldconfig
-
-RUN cd /var/local/git/grpc && \
-    make -j${NPROC} && make install && make clean && ldconfig
-
-################################
-# Install AWS SDK
-################################
-RUN cd / && git clone --depth 1 --recursive -b ${AWS_SDK_VERSION} https://github.com/aws/aws-sdk-cpp.git && \
-	mkdir -p /aws-sdk-cpp/build && \
-	cd /aws-sdk-cpp/build && \
-	CXX=clang++ CC=clang cmake -GNinja -DCPP_STANDARD=${CPP_VERSION} .. && \
-	cmake --build . && \
-	cmake --build . --target install && \
-	cd / && \
-	rm -rf aws-sdk-cpp
