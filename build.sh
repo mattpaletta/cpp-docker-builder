@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/bin/bash
 set -eou pipefail
 
 command -v docker >/dev/null 2>&1 || { echo >&2 "I require docker but it's not installed.  Aborting."; exit 1; }
@@ -21,6 +21,13 @@ build_image() {
 	docker push mattpaletta/${img_name}:latest
 }
 
+clean_images() {
+	docker rm $(docker ps -a -q) -f
+	docker rmi $(docker images -a -q) -f
+}
+
 build_image cpp-build Build
 build_image cpp-dev Dev
 build_image cpp-server BuildServer
+
+clean_images

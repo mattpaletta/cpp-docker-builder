@@ -1,5 +1,8 @@
 FROM ubuntu:latest as build
 
+ENV TZ=Europe/Kiev
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 RUN apt-get update && apt-get install -y \
   software-properties-common \
   autoconf \
@@ -50,6 +53,8 @@ RUN curl https://cmake.org/files/v${CMAKE_MAJOR_VERSION}/cmake-${CMAKE_MAJOR_VER
 ###############################
 
 RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+RUN ln -s /usr/bin/clang-11 /usr/bin/clang
+RUN ln -s /usr/bin/clang++-11 /usr/bin/clang++
 
 ################################
 # Update Boost
